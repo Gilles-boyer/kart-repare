@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 class ProductTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use WithFaker; // Supprimé RefreshDatabase car c'est dans TestCase.php
 
     protected function setUp(): void
     {

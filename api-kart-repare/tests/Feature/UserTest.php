@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class UserTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use WithFaker; // Supprimé RefreshDatabase car c'est dans TestCase.php
 
     /**
      * Test user can login successfully.

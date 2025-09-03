@@ -7,6 +7,7 @@ use App\Http\Requests\StoreRepairRequestProductRequest;
 use App\Http\Requests\UpdateRepairRequestProductRequest;
 use App\Http\Resources\RepairRequestProductResource;
 use App\Models\RepairRequestProduct;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -147,6 +148,18 @@ class RepairRequestProductController extends Controller
                 'data' => new RepairRequestProductResource($repairRequestProduct->load(['repairRequest', 'product']))
             ], 201);
 
+        } catch (AuthorizationException $e) {
+            DB::rollBack();
+
+            Log::warning('Authorization failed for creating repair request product', [
+                'user_id' => Auth::id(),
+                'reason' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Action non autorisée. Vous n\'avez pas les permissions pour créer des produits de demande de réparation.'
+            ], 403);
+
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -176,6 +189,17 @@ class RepairRequestProductController extends Controller
             return response()->json([
                 'data' => new RepairRequestProductResource($repairRequestProduct)
             ]);
+
+        } catch (AuthorizationException $e) {
+            Log::warning('Authorization failed for viewing repair request product', [
+                'repair_request_product_id' => $repairRequestProduct->id,
+                'user_id' => Auth::id(),
+                'reason' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Action non autorisée. Vous ne pouvez voir que les produits qui vous sont assignés.'
+            ], 403);
 
         } catch (\Exception $e) {
             Log::error('Error fetching repair request product: ' . $e->getMessage(), [
@@ -346,6 +370,19 @@ class RepairRequestProductController extends Controller
                 'data' => new RepairRequestProductResource($repairRequestProduct->load(['repairRequest', 'product', 'invoicedBy', 'completedBy']))
             ]);
 
+        } catch (AuthorizationException $e) {
+            DB::rollBack();
+
+            Log::warning('Authorization failed for completing repair request product', [
+                'repair_request_product_id' => $repairRequestProduct->id,
+                'user_id' => Auth::id(),
+                'reason' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Action non autorisée. Le produit doit être facturé pour être marqué comme terminé.'
+            ], 403);
+
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -385,6 +422,19 @@ class RepairRequestProductController extends Controller
                 'message' => 'Produit de demande de réparation approuvé avec succès.',
                 'data' => new RepairRequestProductResource($repairRequestProduct->load(['repairRequest', 'product', 'invoicedBy', 'completedBy']))
             ]);
+
+        } catch (AuthorizationException $e) {
+            DB::rollBack();
+
+            Log::warning('Authorization failed for approving repair request product', [
+                'repair_request_product_id' => $repairRequestProduct->id,
+                'user_id' => Auth::id(),
+                'reason' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Action non autorisée. Le produit doit être terminé pour être approuvé.'
+            ], 403);
 
         } catch (\Exception $e) {
             DB::rollBack();

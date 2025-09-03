@@ -12,13 +12,9 @@ use Tests\TestCase;
 
 class KartTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use WithFaker; // Supprimé RefreshDatabase car c'est dans TestCase.php
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->artisan('migrate');
-    }
+    // Supprimé setUp() car DatabaseTruncation gère la base de données
 
     /** @test */
     public function admin_can_view_all_karts()

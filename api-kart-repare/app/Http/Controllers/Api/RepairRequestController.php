@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateRepairRequestRequest;
 use App\Http\Resources\RepairRequestResource;
 use App\Models\RepairRequest;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -29,10 +30,22 @@ class RepairRequestController extends Controller
      */
     public function index(Request $request): JsonResponse|AnonymousResourceCollection
     {
-        $this->authorize('viewAny', RepairRequest::class);
+        try {
+            $this->authorize('viewAny', RepairRequest::class);
+        } catch (AuthorizationException $e) {
+            Log::warning('Unauthorized access to repair requests', [
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()?->role,
+                'endpoint' => 'repair-requests.index'
+            ]);
+
+            return response()->json([
+                'message' => 'Vous n\'avez pas l\'autorisation de voir les demandes de réparation.'
+            ], 403);
+        }
 
         try {
-            $query = RepairRequest::with(['kart', 'status', 'creator', 'assignedMechanic']);
+            $query = RepairRequest::with(['kart', 'status', 'creator', 'assignedUser']);
 
             /** @var User $user */
             $user = Auth::user();
@@ -68,6 +81,15 @@ class RepairRequestController extends Controller
                     $q->where('title', 'LIKE', "%{$search}%")
                       ->orWhere('description', 'LIKE', "%{$search}%");
                 });
+            }
+
+            // Filtres par statut de completion
+            if ($request->has('is_completed')) {
+                if ($request->boolean('is_completed')) {
+                    $query->completed();
+                } else {
+                    $query->active();
+                }
             }
 
             // Filtres par statut de progression
@@ -188,7 +210,7 @@ class RepairRequestController extends Controller
         $this->authorize('view', $repairRequest);
 
         try {
-            $repairRequest->load(['kart', 'status', 'creator', 'assignedMechanic']);
+            $repairRequest->load(['kart', 'status', 'creator', 'assignedUser']);
 
             return response()->json([
                 'data' => new RepairRequestResource($repairRequest),
@@ -236,7 +258,7 @@ class RepairRequestController extends Controller
 
             return response()->json([
                 'message' => 'Demande de réparation mise à jour avec succès.',
-                'data' => new RepairRequestResource($repairRequest->load(['kart', 'status', 'creator', 'assignedMechanic'])),
+                'data' => new RepairRequestResource($repairRequest->load(['kart', 'status', 'creator', 'assignedUser'])),
             ]);
 
         } catch (ValidationException $e) {
@@ -343,7 +365,7 @@ class RepairRequestController extends Controller
 
             return response()->json([
                 'message' => 'Demande de réparation commencée avec succès.',
-                'data' => new RepairRequestResource($repairRequest->fresh(['kart', 'status', 'creator', 'assignedMechanic'])),
+                'data' => new RepairRequestResource($repairRequest->fresh(['kart', 'status', 'creator', 'assignedUser'])),
             ]);
 
         } catch (Exception $e) {
@@ -407,7 +429,7 @@ class RepairRequestController extends Controller
 
             return response()->json([
                 'message' => 'Demande de réparation terminée avec succès.',
-                'data' => new RepairRequestResource($repairRequest->fresh(['kart', 'status', 'creator', 'assignedMechanic'])),
+                'data' => new RepairRequestResource($repairRequest->fresh(['kart', 'status', 'creator', 'assignedUser'])),
             ]);
 
         } catch (ValidationException $e) {
@@ -480,7 +502,7 @@ class RepairRequestController extends Controller
 
             return response()->json([
                 'message' => $message,
-                'data' => new RepairRequestResource($repairRequest->fresh(['kart', 'status', 'creator', 'assignedMechanic'])),
+                'data' => new RepairRequestResource($repairRequest->fresh(['kart', 'status', 'creator', 'assignedUser'])),
             ]);
 
         } catch (ValidationException $e) {
@@ -512,17 +534,27 @@ class RepairRequestController extends Controller
      */
     public function statistics(Request $request): JsonResponse
     {
-        $this->authorize('viewStatistics', RepairRequest::class);
+        try {
+            $this->authorize('viewStatistics', RepairRequest::class);
+        } catch (AuthorizationException $e) {
+            Log::warning('Unauthorized access to repair request statistics', [
+                'user_id' => Auth::id(),
+                'user_role' => Auth::user()?->role,
+                'endpoint' => 'repair-requests.statistics'
+            ]);
+
+            return response()->json([
+                'message' => 'Vous n\'avez pas l\'autorisation de voir les statistiques.'
+            ], 403);
+        }
 
         try {
             $stats = [
                 'total' => RepairRequest::count(),
-                'by_status' => [
-                    'pending' => RepairRequest::pending()->count(),
-                    'active' => RepairRequest::active()->count(),
-                    'completed' => RepairRequest::completed()->count(),
-                    'overdue' => RepairRequest::overdue()->count(),
-                ],
+                'pending' => RepairRequest::pending()->count(),
+                'active' => RepairRequest::active()->count(),
+                'completed' => RepairRequest::completed()->count(),
+                'overdue' => RepairRequest::overdue()->count(),
                 'by_priority' => [
                     'high' => RepairRequest::highPriority()->count(),
                     'medium' => RepairRequest::mediumPriority()->count(),
@@ -532,20 +564,15 @@ class RepairRequestController extends Controller
                     'total_estimated' => (float) RepairRequest::sum('estimated_cost'),
                     'total_actual' => (float) RepairRequest::sum('actual_cost'),
                     'average_cost' => (float) RepairRequest::avg('estimated_cost'),
-                    'cost_variance' => (float) RepairRequest::selectRaw('SUM(actual_cost - estimated_cost) as variance')->value('variance') ?? 0,
                 ],
-                'completion_rate' => [
-                    'percentage' => RepairRequest::count() > 0 ? round((RepairRequest::completed()->count() / RepairRequest::count()) * 100, 2) : 0,
-                    'average_duration_days' => RepairRequest::whereNotNull('completed_at')
-                        ->whereNotNull('started_at')
-                        ->selectRaw('AVG(DATEDIFF(completed_at, started_at)) as avg_duration')
-                        ->value('avg_duration') ?? 0,
+                'timeline' => [
+                    'this_month' => RepairRequest::whereMonth('created_at', now()->month)->count(),
+                    'last_month' => RepairRequest::whereMonth('created_at', now()->subMonth()->month)->count(),
                 ],
+                'deleted' => RepairRequest::onlyTrashed()->count(),
             ];
 
-            return response()->json([
-                'data' => $stats,
-            ]);
+            return response()->json($stats);
 
         } catch (Exception $e) {
             Log::error('Erreur lors de la génération des statistiques', [

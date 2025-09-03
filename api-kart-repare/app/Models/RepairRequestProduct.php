@@ -209,19 +209,37 @@ class RepairRequestProduct extends Model
 
     public function scopeInvoiced(Builder $query): Builder
     {
-        return $query->whereNotNull('invoiced_at')
-                    ->whereNull('completed_at');
+        return $query->whereNotNull('invoiced_at');
     }
 
     public function scopeCompleted(Builder $query): Builder
     {
-        return $query->whereNotNull('completed_at')
-                    ->whereNull('approved_at');
+        return $query->whereNotNull('completed_at');
     }
 
     public function scopeApproved(Builder $query): Builder
     {
         return $query->whereNotNull('approved_at');
+    }
+
+    public function scopeNotInvoiced(Builder $query): Builder
+    {
+        return $query->whereNull('invoiced_at');
+    }
+
+    public function scopeNotCompleted(Builder $query): Builder
+    {
+        return $query->whereNull('completed_at');
+    }
+
+    public function scopeNotApproved(Builder $query): Builder
+    {
+        return $query->whereNull('approved_at');
+    }
+
+    public function scopeByPriority(Builder $query, string $priority): Builder
+    {
+        return $query->where('priority', $priority);
     }
 
     public function scopeWithPriority(Builder $query, string $priority): Builder

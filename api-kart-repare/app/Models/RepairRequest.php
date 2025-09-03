@@ -195,4 +195,19 @@ class RepairRequest extends Model
     {
         return $query->where('status_id', $statusId);
     }
+
+    public function scopeHighPriority(Builder $query): Builder
+    {
+        return $query->where('priority', 'high');
+    }
+
+    public function scopeMediumPriority(Builder $query): Builder
+    {
+        return $query->where('priority', 'medium');
+    }
+
+    public function scopeLowPriority(Builder $query): Builder
+    {
+        return $query->where('priority', 'low');
+    }
 }

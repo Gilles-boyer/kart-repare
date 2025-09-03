@@ -11,13 +11,10 @@ use Tests\TestCase;
 
 class RequestStatusTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use WithFaker; // Supprimé RefreshDatabase car c'est dans TestCase.php
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->artisan('migrate');
-    }
+    // Supprimé la méthode setUp() problématique
+    // Le trait DatabaseTruncation dans TestCase.php gère la base de données
 
     /** @test */
     public function authenticated_user_can_view_all_request_statuses()

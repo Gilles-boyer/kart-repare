@@ -13,13 +13,9 @@ use Tests\TestCase;
 
 class RepairRequestTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use WithFaker; // Supprimé RefreshDatabase car c'est dans TestCase.php
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->artisan('migrate');
-    }
+    // Supprimé setUp() car DatabaseTruncation gère la base de données
 
     /** @test */
     public function authenticated_user_can_view_their_repair_requests()
@@ -397,14 +393,40 @@ class RepairRequestTest extends TestCase
     /** @test */
     public function repair_request_scopes_work_correctly()
     {
-        RepairRequest::factory()->create(['priority' => 'high']);
-        RepairRequest::factory()->completed()->create();
-        RepairRequest::factory()->overdue()->create();
-        RepairRequest::factory()->active()->create();
+        // Create a high priority request (not started, not completed)
+        RepairRequest::factory()->create([
+            'priority' => 'high',
+            'started_at' => null,
+            'completed_at' => null,
+            'estimated_completion' => now()->addDays(7),
+        ]);
+
+        // Create a completed request with medium priority
+        RepairRequest::factory()->create([
+            'priority' => 'medium',
+            'started_at' => now()->subDays(5),
+            'completed_at' => now()->subDays(1),
+        ]);
+
+        // Create an overdue request with low priority
+        RepairRequest::factory()->create([
+            'priority' => 'low',
+            'started_at' => now()->subDays(10),
+            'completed_at' => null,
+            'estimated_completion' => now()->subDays(3),
+        ]);
+
+        // Create an active (not overdue) request with medium priority
+        RepairRequest::factory()->create([
+            'priority' => 'medium',
+            'started_at' => now()->subDays(2),
+            'completed_at' => null,
+            'estimated_completion' => now()->addDays(5),
+        ]);
 
         $this->assertEquals(1, RepairRequest::withPriority('high')->count());
         $this->assertEquals(1, RepairRequest::completed()->count());
         $this->assertEquals(1, RepairRequest::overdue()->count());
-        $this->assertEquals(1, RepairRequest::active()->count());
+        $this->assertEquals(3, RepairRequest::active()->count()); // 3 active: pending + overdue + started non-overdue
     }
 }

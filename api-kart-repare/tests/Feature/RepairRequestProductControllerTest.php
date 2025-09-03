@@ -6,13 +6,13 @@ use App\Models\Product;
 use App\Models\RepairRequest;
 use App\Models\RepairRequestProduct;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class RepairRequestProductControllerTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use WithFaker; // Supprimé RefreshDatabase car c'est dans TestCase.php
 
     private User $admin;
     private User $bureauStaff;
@@ -36,7 +36,7 @@ class RepairRequestProductControllerTest extends TestCase
         $this->product = Product::factory()->create(['price' => 25.50]);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_view_all_repair_request_products()
     {
         RepairRequestProduct::factory()->count(3)->create();

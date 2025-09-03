@@ -10,13 +10,9 @@ use Tests\TestCase;
 
 class PilotSoftDeleteTest extends TestCase
 {
-    use RefreshDatabase;
+    // Supprimé RefreshDatabase car c'est dans TestCase.php
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->artisan('migrate');
-    }
+    // Supprimé setUp() car DatabaseTruncation gère la base de données
 
     /** @test */
     public function admin_can_view_trashed_pilots()
